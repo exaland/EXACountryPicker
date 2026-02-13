@@ -40,7 +40,7 @@ open class EXCountryPicker: UITableViewController {
             guard let displayName = (locale as NSLocale).displayName(forKey: NSLocale.Key.countryCode, value: countryCode) else {
                 continue // Skip if displayName is nil
             }
-            let countryData = CallingCodes.filter { $0["code"] == countryCode }
+            let countryData = self.CallingCodes.filter { $0["code"] == countryCode }
             let country: EXCountry
             
             if countryData.count > 0, let dialCode = countryData[0]["dial_code"] {
@@ -97,7 +97,7 @@ open class EXCountryPicker: UITableViewController {
             return _sections!
         }
         
-        let countryData = CallingCodes.filter { $0["code"] == countryCode }
+        let countryData = self.CallingCodes.filter { $0["code"] == countryCode }
         let country: EXCountry
         
         if countryData.count > 0, let dialCode = countryData[0]["dial_code"] {
