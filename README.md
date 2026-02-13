@@ -21,15 +21,11 @@ The picker provides:
 
 EXACountryPicker is available through [CocoaPods](http://cocoapods.org), to install it simply add the following line to your Podfile:
 
-Swift 4 >:
+Swift 5 and later:
 
     use_frameworks!
-     pod 'EXACountryPicker', '~> 2.1.0'
+     pod 'EXACountryPicker', '~> 1.0.3'
     
-Swift 3:
-
-    use_frameworks!
-    pod 'EXACountryPicker', '~> 1.0.5'
 
 ### Swift Package Manager
 
@@ -48,7 +44,7 @@ Add the following to your `Package.swift` file:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/exaland/EXACountryPicker.git", from: "2.1.0")
+    .package(url: "https://github.com/exaland/EXACountryPicker.git", from: "1.0.3")
 ]
 ```
 
