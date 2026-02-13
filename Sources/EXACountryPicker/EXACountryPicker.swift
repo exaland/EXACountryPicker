@@ -10,22 +10,22 @@ struct Section {
     }
 }
 
-@objc public protocol EXCountryPickerDelegate: class {
-    @objc optional func countryPicker(_ picker: EXCountryPicker,
+@objc public protocol EXACountryPickerDelegate: class {
+    @objc optional func countryPicker(_ picker: EXACountryPicker,
                        didSelectCountryWithName name: String,
                        code: String)
-    func countryPicker(_ picker: EXCountryPicker,
+    func countryPicker(_ picker: EXACountryPicker,
                                       didSelectCountryWithName name: String,
                                       code: String,
                                       dialCode: String)
 }
 
-open class EXCountryPicker: UITableViewController {
+open class EXACountryPicker: UITableViewController {
     
     private var customCountriesCode: [String]?
     
     fileprivate lazy var CallingCodes = { () -> [[String: String]] in
-        let resourceBundle = Bundle(for: EXCountryPicker.classForCoder())
+        let resourceBundle = Bundle(for: EXACountryPicker.classForCoder())
         guard let path = resourceBundle.path(forResource: "CallingCodes", ofType: "plist") else { return [] }
         return NSArray(contentsOfFile: path) as! [[String: String]]
     }()
@@ -119,7 +119,7 @@ open class EXCountryPicker: UITableViewController {
     
     fileprivate let collation = UILocalizedIndexedCollation.current()
         as UILocalizedIndexedCollation
-    open weak var delegate: EXCountryPickerDelegate?
+    open weak var delegate: EXACountryPickerDelegate?
     
     /// Closure which returns country name and ISO code
     open var didSelectCountryClosure: ((String, String) -> ())?
@@ -182,7 +182,7 @@ open class EXCountryPicker: UITableViewController {
             
             let bundle = "assets.bundle/"
             let closeButton = UIBarButtonItem(image: UIImage(named: bundle + "close_icon" + ".png",
-                                                             in: Bundle(for: EXCountryPicker.self),
+                                                             in: Bundle(for: EXACountryPicker.self),
                                                              compatibleWith: nil),
                                               style: .plain,
                                               target: self,
@@ -268,7 +268,7 @@ open class EXCountryPicker: UITableViewController {
         if countries.count > 0 {
             let bundle = "assets.bundle/"
             return UIImage(named: bundle + countries.first!.code.uppercased() + ".png",
-                           in: Bundle(for: EXCountryPicker.self), compatibleWith: nil)
+                           in: Bundle(for: EXACountryPicker.self), compatibleWith: nil)
         }
         else {
             return nil
@@ -308,7 +308,7 @@ open class EXCountryPicker: UITableViewController {
 
 // MARK: - Table view data source
 
-extension EXCountryPicker {
+extension EXACountryPicker {
     
     override open func numberOfSections(in tableView: UITableView) -> Int {
         if searchController.searchBar.text!.count > 0 {
@@ -361,7 +361,7 @@ extension EXCountryPicker {
         let bundle = "assets.bundle/"
         
         if self.showFlags == true {
-            let image = UIImage(named: bundle + country.code.uppercased() + ".png", in: Bundle(for: EXCountryPicker.self), compatibleWith: nil)
+            let image = UIImage(named: bundle + country.code.uppercased() + ".png", in: Bundle(for: EXACountryPicker.self), compatibleWith: nil)
             if (image != nil) {
                 cell.imageView?.image = image?.fitImage(size: CGSize(width:self.flagHeight, height:flagHeight))
             }
@@ -420,7 +420,7 @@ extension EXCountryPicker {
 
 // MARK: - Table view delegate
 
-extension EXCountryPicker {
+extension EXACountryPicker {
     
     override open func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
@@ -439,7 +439,7 @@ extension EXCountryPicker {
 
 // MARK: - UISearchDisplayDelegate
 
-extension EXCountryPicker: UISearchResultsUpdating {
+extension EXACountryPicker: UISearchResultsUpdating {
     
     public func updateSearchResults(for searchController: UISearchController) {
         _ = filter(searchController.searchBar.text!)
