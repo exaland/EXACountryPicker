@@ -431,6 +431,34 @@ open class EXACountryPicker: UITableViewController {
             return nil
         }
     }
+    
+    /// Returns the country flag for the given dialing code (ex: "+33").
+    ///
+    /// This is a convenience for apps that only store the dial code and not the ISO country code.
+    ///
+    /// - Parameter dialCode: dialing code (usually starts with "+")
+    /// - Returns: the UIImage for the corresponding country if it exists
+    public func getFlag(dialCode: String) -> UIImage? {
+        let normalized = dialCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return nil }
+
+        // Find first match in CallingCodes.plist
+        if let match = CallingCodes.first(where: { $0["dial_code"] == normalized }),
+           let countryCode = match["code"] {
+            return getFlag(countryCode: countryCode)
+        }
+
+        // Also support dial codes provided without leading "+".
+        if !normalized.hasPrefix("+") {
+            let plus = "+" + normalized
+            if let match = CallingCodes.first(where: { $0["dial_code"] == plus }),
+               let countryCode = match["code"] {
+                return getFlag(countryCode: countryCode)
+            }
+        }
+
+        return nil
+    }
 }
 
 // MARK: - Table view data source

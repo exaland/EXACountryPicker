@@ -51,4 +51,10 @@ import Foundation
     #expect(stored == ["DE", "FR", "US"]) // limit=3, most recent first
 }
 
+@Test func getFlagFromDialCodeReturnsImage() async throws {
+    let picker = await EXACountryPicker(style: .grouped)
+    let flag = await picker.getFlag(dialCode: "+33")
+    #expect(flag != nil)
+}
+
 #endif
