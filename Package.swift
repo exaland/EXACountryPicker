@@ -16,10 +16,10 @@ let package = Package(
     // Targets can depend on other targets in this package and products from dependencies.
     .target(
       name: "EXACountryPicker",
+      path: "Sources/EXACountryPicker",
       resources: [
         .process("assets.bundle"),
-        .process("CallingCodes.plist"),
-
+        .process("CallingCodes.plist")
       ]
     ),
 
