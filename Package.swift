@@ -22,7 +22,8 @@ let package = Package(
       path: "Sources/EXACountryPicker",
       resources: [
         .process("assets.bundle"),
-        .process("CallingCodes.plist")
+        .process("CallingCodes.plist"),
+        .process("EXACountryPicker.strings")
       ]
     ),
 

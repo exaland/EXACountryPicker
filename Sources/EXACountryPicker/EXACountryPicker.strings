@@ -1,0 +1,9 @@
+/*
+ Default localization table for EXACountryPicker.
+ Apps can override by providing their own EXACountryPicker.strings in the main bundle,
+ or by setting `picker.theme.localizationBundle` / `picker.theme.localizationTableName`.
+*/
+
+"EXACountryPicker.section.recent" = "Recent";
+"EXACountryPicker.section.preferred" = "Preferred";
+"EXACountryPicker.section.currentLocation" = "Current Location";

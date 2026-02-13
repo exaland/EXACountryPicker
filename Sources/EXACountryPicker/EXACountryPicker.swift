@@ -1,6 +1,3 @@
-// The Swift Programming Language
-// https://docs.swift.org/swift-book
-
 #if canImport(UIKit)
 import UIKit
 
@@ -501,7 +498,8 @@ extension EXACountryPicker {
         if searchController.searchBar.text!.count > 0 {
             country = filteredList[(indexPath as NSIndexPath).row]
         } else {
-            country = sections[(indexPath as NSIndexPath).section].countries[(indexPath as NSIndexPath).row]
+            let section = baseSectionIndex(forDisplayedSection: (indexPath as NSIndexPath).section)
+            country = sections[section].countries[(indexPath as NSIndexPath).row]
             
         }
         
@@ -548,18 +546,18 @@ extension EXACountryPicker {
             if configuration.showsRecentCountries {
                 let recents = recentCountryCodes
                 if !recents.isEmpty {
-                    if section == dynamicIndex { return "Recent" }
+                    if section == dynamicIndex { return theme.resolvedRecentTitle() }
                     dynamicIndex += 1
                 }
             }
 
             if !configuration.preferredCountryCodes.isEmpty {
-                if section == dynamicIndex { return "Preferred" }
+                if section == dynamicIndex { return theme.resolvedPreferredTitle() }
                 dynamicIndex += 1
             }
 
             if configuration.showsCurrentLocation {
-                if section == dynamicIndex { return "Current Location" }
+                if section == dynamicIndex { return theme.resolvedCurrentLocationTitle() }
                 dynamicIndex += 1
             }
 
@@ -579,15 +577,53 @@ extension EXACountryPicker {
         return sections[section].countries.isEmpty ? 0 : 26
     }
     
+    /// Maps a visible section index (table view) to the underlying `sections` index.
+    ///
+    /// When we insert dynamic sections at the top (Recent / Preferred / Current Location),
+    /// the `collation` index titles still refer to the base A-Z sections. This helper
+    /// offsets the section index so selections and cell rendering don't mix countries.
+    private func baseSectionIndex(forDisplayedSection displayedSection: Int) -> Int {
+        var offset = 0
+
+        if configuration.showsRecentCountries {
+            let recents = recentCountryCodes
+            if !recents.isEmpty { offset += 1 }
+        }
+
+        if !configuration.preferredCountryCodes.isEmpty {
+            offset += 1
+        }
+
+        if configuration.showsCurrentLocation {
+            offset += 1
+        }
+
+        return displayedSection - offset
+    }
+    
     override open func sectionIndexTitles(for tableView: UITableView) -> [String]? {
+        // Only show the A-Z index when not searching.
+        if searchController.searchBar.text!.count > 0 {
+            return nil
+        }
         return collation.sectionIndexTitles
     }
     
     override open func tableView(_ tableView: UITableView,
                                  sectionForSectionIndexTitle title: String,
-                                 at index: Int)
-        -> Int {
-            return collation.section(forSectionIndexTitle: index+1)
+                                 at index: Int) -> Int {
+        // `index` is for the collation A-Z titles. We need to shift it by the number
+        // of dynamic sections inserted at the top.
+        var dynamicOffset = 0
+
+        if configuration.showsRecentCountries {
+            let recents = recentCountryCodes
+            if !recents.isEmpty { dynamicOffset += 1 }
+        }
+        if !configuration.preferredCountryCodes.isEmpty { dynamicOffset += 1 }
+        if configuration.showsCurrentLocation { dynamicOffset += 1 }
+
+        return collation.section(forSectionIndexTitle: index) + dynamicOffset
     }
 }
 
@@ -601,7 +637,8 @@ extension EXACountryPicker {
         if searchController.searchBar.text!.count > 0 {
             country = filteredList[(indexPath as NSIndexPath).row]
         } else {
-            country = sections[(indexPath as NSIndexPath).section].countries[(indexPath as NSIndexPath).row]
+            let section = baseSectionIndex(forDisplayedSection: (indexPath as NSIndexPath).section)
+            country = sections[section].countries[(indexPath as NSIndexPath).row]
         }
 
         // Persist to recents

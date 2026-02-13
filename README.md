@@ -269,6 +269,7 @@ This library ships the images inside `Sources/EXACountryPicker/assets.bundle/` a
 Make sure you’re using a version that declares the resources in `Package.swift` (SwiftPM):
 - `assets.bundle/`
 - `CallingCodes.plist`
+- `EXACountryPicker.strings`
 
 If you’re integrating from source, verify `Package.swift` contains something like:
 
@@ -278,13 +279,62 @@ If you’re integrating from source, verify `Package.swift` contains something l
   path: "Sources/EXACountryPicker",
   resources: [
     .process("assets.bundle"),
-    .process("CallingCodes.plist")
+    .process("CallingCodes.plist"),
+    .process("EXACountryPicker.strings")
   ]
 )
 ```
+
+If you recently switched from CocoaPods to SwiftPM (or updated the package), reset package caches in Xcode:
+- File → Packages → **Reset Package Caches**
+- File → Packages → **Resolve Package Versions**
+- Product → **Clean Build Folder**
 
 Also ensure you didn’t disable flags:
 
 ```swift
 picker.showFlags = true
+```
+
+### Dial code vs ISO code
+
+`getFlag(countryCode:)` expects an **ISO country code** like `"FR"`, `"US"`, not a dial code like `"+33"`.
+
+If you only have the dial code, you can use:
+
+```swift
+let flag = picker.getFlag(dialCode: "+33")
+```
+
+## Notes (Recent section + localization)
+
+### Recent section bugfix
+
+If you enable Recent/Preferred/Current Location sections, the picker inserts dynamic sections at the top.
+A bug could cause the table to select a different country than the one tapped (section index offset issue).
+This has been fixed by correctly mapping displayed section indexes to the underlying data.
+
+### Localization (section titles)
+
+Section titles are now localizable/customizable through `EXACountryPickerTheme`.
+
+**Default localization keys**:
+- `EXACountryPicker.section.recent`
+- `EXACountryPicker.section.preferred`
+- `EXACountryPicker.section.currentLocation`
+
+Add translations in your app (recommended) in `EXACountryPicker.strings`:
+
+```strings
+"EXACountryPicker.section.recent" = "Récents";
+"EXACountryPicker.section.preferred" = "Favoris";
+"EXACountryPicker.section.currentLocation" = "Position actuelle";
+```
+
+Or override titles directly:
+
+```swift
+picker.theme.recentTitle = "Récents"
+picker.theme.preferredTitle = "Favoris"
+picker.theme.currentLocationTitle = "Position actuelle"
 ```

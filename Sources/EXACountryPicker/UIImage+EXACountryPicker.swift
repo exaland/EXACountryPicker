@@ -20,6 +20,21 @@ extension UIImage {
             self.draw(in: CGRect(origin: .zero, size: newSize))
         }
     }
+    
+    /**
+        Returns a copy of the image with rounded corners.
+     */
+    func setRadius(_ radius: CGFloat) -> UIImage {
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = self.scale
+
+        return UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            let rect = CGRect(origin: .zero, size: size)
+            UIBezierPath(roundedRect: rect, cornerRadius: radius).addClip()
+            self.draw(in: rect)
+        }
+
+    }
 
     /// Creates a solid color image (useful as a placeholder when a flag is missing).
     static func ex_solidColor(_ color: UIColor, size: CGSize) -> UIImage {
