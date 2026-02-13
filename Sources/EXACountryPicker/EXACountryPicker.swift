@@ -10,7 +10,7 @@ struct Section {
     }
 }
 
-@objc public protocol EXACountryPickerDelegate: class {
+@objc public protocol EXACountryPickerDelegate: AnyObject {
     @objc optional func countryPicker(_ picker: EXACountryPicker,
                        didSelectCountryWithName name: String,
                        code: String)
@@ -21,9 +21,40 @@ struct Section {
 }
 
 open class EXACountryPicker: UITableViewController {
-    
+
+    // MARK: - New customization APIs
+
+    /// Advanced configuration (preferred/recent/search). Defaults to `.default`.
+    open var configuration: EXACountryPickerConfiguration = .default {
+        didSet {
+            _sections = nil
+            tableView?.reloadData()
+        }
+    }
+
+    /// Theme (colors/fonts). Defaults to `.default`.
+    open var theme: EXACountryPickerTheme = .default {
+        didSet {
+            applyTheme()
+            tableView?.reloadData()
+        }
+    }
+
     private var customCountriesCode: [String]?
-    
+
+    // MARK: - Recent persistence
+
+    private var recentCountryCodes: [String] {
+        get {
+            guard configuration.showsRecentCountries else { return [] }
+            return (UserDefaults.standard.array(forKey: configuration.recentCountriesUserDefaultsKey) as? [String]) ?? []
+        }
+        set {
+            guard configuration.showsRecentCountries else { return }
+            UserDefaults.standard.set(newValue, forKey: configuration.recentCountriesUserDefaultsKey)
+        }
+    }
+
     fileprivate lazy var CallingCodes = { () -> [[String: String]] in
         let resourceBundle = Bundle(for: EXACountryPicker.classForCoder())
         guard let path = resourceBundle.path(forResource: "CallingCodes", ofType: "plist") else { return [] }
@@ -34,15 +65,15 @@ open class EXACountryPicker: UITableViewController {
     fileprivate var unsortedCountries : [EXCountry] {
         let locale = Locale.current
         var unsortedCountries = [EXCountry]()
-        let countriesCodes = customCountriesCode == nil ? Locale.isoRegionCodes : customCountriesCode!
-        
+        let countriesCodes = configuration.allowedCountryCodes ?? customCountriesCode ?? Locale.isoRegionCodes
+
         for countryCode in countriesCodes {
             guard let displayName = (locale as NSLocale).displayName(forKey: NSLocale.Key.countryCode, value: countryCode) else {
-                continue // Skip if displayName is nil
+                continue
             }
             let countryData = self.CallingCodes.filter { $0["code"] == countryCode }
             let country: EXCountry
-            
+
             if countryData.count > 0, let dialCode = countryData[0]["dial_code"] {
                 country = EXCountry(name: displayName, code: countryCode, dialCode: dialCode)
             } else {
@@ -50,73 +81,89 @@ open class EXACountryPicker: UITableViewController {
             }
             unsortedCountries.append(country)
         }
-        
+
         return unsortedCountries
     }
-    
+
     fileprivate var _sections: [Section]?
     fileprivate var sections: [Section] {
-        
+
         if _sections != nil {
             return _sections!
         }
-        
+
         let countries: [EXCountry] = unsortedCountries.map { country in
             let country = EXCountry(name: country.name, code: country.code, dialCode: country.dialCode)
             country.section = collation.section(for: country, collationStringSelector: #selector(getter: EXCountry.name))
             return country
         }
-        
+
         // create empty sections
         var sections = [Section]()
         for _ in 0..<self.collation.sectionIndexTitles.count {
             sections.append(Section())
         }
-        
-        
+
         // put each country in a section
         for country in countries {
             sections[country.section!].addCountry(country)
         }
-        
+
         // sort each section
         for i in 0..<sections.count {
             sections[i].countries = collation.sortedArray(from: sections[i].countries, collationStringSelector: #selector(getter: EXCountry.name)) as! [EXCountry]
         }
-        
-        // Adds current location
-        var countryCode = (Locale.current as NSLocale).object(forKey: .countryCode) as? String ?? self.defaultCountryCode
-        if self.forceDefaultCountryCode {
-            countryCode = self.defaultCountryCode
+
+        // Optional: Current location section
+        if configuration.showsCurrentLocation {
+            var countryCode = (Locale.current as NSLocale).object(forKey: .countryCode) as? String ?? self.defaultCountryCode
+            if self.forceDefaultCountryCode {
+                countryCode = self.defaultCountryCode
+            }
+
+            let locale = Locale.current
+            if let displayName = (locale as NSLocale).displayName(forKey: NSLocale.Key.countryCode, value: countryCode) {
+                let countryData = self.CallingCodes.filter { $0["code"] == countryCode }
+                let country: EXCountry
+
+                if countryData.count > 0, let dialCode = countryData[0]["dial_code"] {
+                    country = EXCountry(name: displayName, code: countryCode, dialCode: dialCode)
+                } else {
+                    country = EXCountry(name: displayName, code: countryCode)
+                }
+                country.section = 0
+
+                sections.insert(Section(), at: 0)
+                sections[0].addCountry(country)
+            }
         }
-        
-        let locale = Locale.current
-        guard let displayName = (locale as NSLocale).displayName(forKey: NSLocale.Key.countryCode, value: countryCode) else {
-            // Skip adding current location if displayName is unavailable
-            _sections = sections
-            return _sections!
+
+        // Preferred section
+        if !configuration.preferredCountryCodes.isEmpty {
+            let preferred = configuration.preferredCountryCodes
+                .compactMap { code in countries.first(where: { $0.code.caseInsensitiveCompare(code) == .orderedSame }) }
+            if !preferred.isEmpty {
+                var preferredSection = Section()
+                preferred.forEach { preferredSection.addCountry($0) }
+                sections.insert(preferredSection, at: 0)
+            }
         }
-        
-        let countryData = self.CallingCodes.filter { $0["code"] == countryCode }
-        let country: EXCountry
-        
-        if countryData.count > 0, let dialCode = countryData[0]["dial_code"] {
-            country = EXCountry(name: displayName, code: countryCode, dialCode: dialCode)
-        } else {
-            country = EXCountry(name: displayName, code: countryCode)
+
+        // Recent section
+        if configuration.showsRecentCountries {
+            let recents = recentCountryCodes
+                .compactMap { code in countries.first(where: { $0.code.caseInsensitiveCompare(code) == .orderedSame }) }
+            if !recents.isEmpty {
+                var recentSection = Section()
+                recents.forEach { recentSection.addCountry($0) }
+                sections.insert(recentSection, at: 0)
+            }
         }
-        country.section = 0
-        
-        // Insert empty section and add current location country
-        sections.insert(Section(), at: 0)
-        sections[0].addCountry(country)
-        
-        
+
         _sections = sections
-        
         return _sections!
     }
-    
+
     fileprivate let collation = UILocalizedIndexedCollation.current()
         as UILocalizedIndexedCollation
     open weak var delegate: EXACountryPickerDelegate?
@@ -171,15 +218,16 @@ open class EXACountryPicker: UITableViewController {
     override open func viewDidLoad() {
         super.viewDidLoad()
         self.navigationItem.title = pickerTitle
-        
+
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "UITableViewCell")
         createSearchBar()
+        applyTheme()
         tableView.reloadData()
-        
+
         definesPresentationContext = true
-        
+
         if self.presentingViewController != nil {
-            
+
             let bundle = "assets.bundle/"
             let closeButton = UIBarButtonItem(image: UIImage(named: bundle + "close_icon" + ".png",
                                                              in: Bundle(for: EXACountryPicker.self),
@@ -187,19 +235,51 @@ open class EXACountryPicker: UITableViewController {
                                               style: .plain,
                                               target: self,
                                               action: #selector(self.dismissView))
-            closeButton.tintColor = closeButtonTintColor
+            closeButton.tintColor = theme.closeButtonTintColor ?? closeButtonTintColor
             self.navigationItem.leftBarButtonItem = nil
             self.navigationItem.leftBarButtonItem = closeButton
         }
-        
-        tableView.sectionIndexColor = alphabetScrollBarTintColor
-        tableView.sectionIndexBackgroundColor = alphabetScrollBarBackgroundColor
-        tableView.separatorColor = UIColor(red: (222)/(255.0),
-                                           green: (222)/(255.0),
-                                           blue: (222)/(255.0),
-                                           alpha: 1)
+
+        tableView.sectionIndexColor = theme.alphabetIndexTintColor ?? alphabetScrollBarTintColor
+        tableView.sectionIndexBackgroundColor = theme.alphabetIndexBackgroundColor ?? alphabetScrollBarBackgroundColor
+        tableView.separatorColor = theme.separatorColor ?? UIColor(red: (222)/(255.0),
+                                                                   green: (222)/(255.0),
+                                                                   blue: (222)/(255.0),
+                                                                   alpha: 1)
     }
-    
+
+    private func applyTheme() {
+        tableView.backgroundColor = theme.backgroundColor
+        if let searchColor = theme.searchBarBackgroundColor {
+            searchBarBackgroundColor = searchColor
+            searchController?.searchBar.barTintColor = searchColor
+        }
+
+        if let navTint = theme.navigationBarTintColor {
+            navigationController?.navigationBar.tintColor = navTint
+        }
+
+        if let titleColor = theme.navigationBarTitleColor {
+            navigationController?.navigationBar.titleTextAttributes = [.foregroundColor: titleColor]
+        }
+
+        if let idxTint = theme.alphabetIndexTintColor {
+            alphabetScrollBarTintColor = idxTint
+        }
+
+        if let idxBg = theme.alphabetIndexBackgroundColor {
+            alphabetScrollBarBackgroundColor = idxBg
+        }
+
+        if let font = theme.countryNameFont {
+            self.font = font
+        }
+
+        if let closeTint = theme.closeButtonTintColor {
+            self.closeButtonTintColor = closeTint
+        }
+    }
+
     // MARK: Methods
     
     @objc private func dismissView() {
@@ -221,19 +301,53 @@ open class EXACountryPicker: UITableViewController {
     
     fileprivate func filter(_ searchText: String) -> [EXCountry] {
         filteredList.removeAll()
-        
-        sections.forEach { (section) -> () in
-            section.countries.forEach({ (country) -> () in
-                if country.name.count >= searchText.count {
-                    let result = country.name.compare(searchText, options: [.caseInsensitive, .diacriticInsensitive],
-                                                      range: searchText.startIndex ..< searchText.endIndex)
-                    if result == .orderedSame {
-                        filteredList.append(country)
-                    }
-                }
-            })
+
+        let normalizedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedSearch.isEmpty else { return [] }
+
+        let tokens = normalizedSearch
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .split(whereSeparator: { $0.isWhitespace })
+            .map(String.init)
+
+        func normalized(_ value: String) -> String {
+            value.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
         }
-        
+
+        let allCountries = sections.flatMap { $0.countries }
+
+        // scoring: prefix > contains; name > code > dial
+        func score(country: EXCountry) -> Int {
+            let name = normalized(country.name)
+            let code = normalized(country.code)
+            let dial = normalized(country.dialCode)
+
+            var s = 0
+            for t in tokens {
+                if name.hasPrefix(t) { s += 20 }
+                else if name.contains(t) { s += 10 }
+
+                if configuration.searchMatchesDialingCodeAndISOCode {
+                    if code.hasPrefix(t) { s += 6 }
+                    else if code.contains(t) { s += 3 }
+
+                    if dial.hasPrefix(t) { s += 4 }
+                    else if dial.contains(t) { s += 2 }
+                }
+            }
+            return s
+        }
+
+        let matches = allCountries
+            .map { ($0, score(country: $0)) }
+            .filter { $0.1 > 0 }
+            .sorted {
+                if $0.1 != $1.1 { return $0.1 > $1.1 }
+                return $0.0.name < $1.0.name
+            }
+            .map { $0.0 }
+
+        filteredList = matches
         return filteredList
     }
     
@@ -353,7 +467,7 @@ extension EXACountryPicker {
         cell.textLabel?.font = self.font
         
         if showCallingCodes {
-            cell.textLabel?.text = country.name + " (" + country.dialCode! + ")"
+            cell.textLabel?.text = country.name + " (" + country.dialCode + ")"
         } else {
             cell.textLabel?.text = country.name
         }
@@ -366,8 +480,13 @@ extension EXACountryPicker {
                 cell.imageView?.image = image?.fitImage(size: CGSize(width:self.flagHeight, height:flagHeight))
             }
             else {
-                cell.imageView?.image = UIImage.init(color: .lightGray,
-                                                     size: CGSize(width:CGFloat(flagHeight), height:CGFloat(flagHeight)/CGFloat(1.5)))?.fitImage(size: CGSize(width:CGFloat(self.flagHeight), height:CGFloat(flagHeight)/CGFloat(1.5)))
+                let placeholder = UIImage.ex_solidColor(
+                    .lightGray,
+                    size: CGSize(width: CGFloat(self.flagHeight), height: CGFloat(flagHeight) / CGFloat(1.5))
+                )
+                cell.imageView?.image = placeholder.fitImage(
+                    size: CGSize(width: CGFloat(self.flagHeight), height: CGFloat(flagHeight) / CGFloat(1.5))
+                )
             }
         }
         
@@ -375,35 +494,46 @@ extension EXACountryPicker {
     }
     
     override open func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        if !sections[section].countries.isEmpty {
-            if searchController.searchBar.text!.count > 0 {
-                if let name = filteredList.first?.name {
-                    let index = name.index(name.startIndex, offsetBy: 0)
-                    return String(describing: name[index])
-                }
-                
-                return ""
-            }
-            
-            if section == 0 {
-                return "Current Location"
-            }
-            
-            return self.collation.sectionTitles[section-1] as String
-            
-            
+        if searchController.searchBar.text!.count > 0 {
+            return nil
         }
-        
+
+        if !sections[section].countries.isEmpty {
+            // top inserted sections order: Recent, Preferred, Current Location (depending on config)
+            var dynamicIndex = 0
+
+            if configuration.showsRecentCountries {
+                let recents = recentCountryCodes
+                if !recents.isEmpty {
+                    if section == dynamicIndex { return "Recent" }
+                    dynamicIndex += 1
+                }
+            }
+
+            if !configuration.preferredCountryCodes.isEmpty {
+                if section == dynamicIndex { return "Preferred" }
+                dynamicIndex += 1
+            }
+
+            if configuration.showsCurrentLocation {
+                if section == dynamicIndex { return "Current Location" }
+                dynamicIndex += 1
+            }
+
+            let baseSection = section - dynamicIndex
+            if baseSection >= 0, baseSection < self.collation.sectionTitles.count {
+                return self.collation.sectionTitles[baseSection] as String
+            }
+        }
+
         return ""
     }
     
     override open func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
-        if section == 0 {
-            return 50
+        if searchController.searchBar.text!.count > 0 {
+            return 0
         }
-        else {
-            return 26
-        }
+        return sections[section].countries.isEmpty ? 0 : 26
     }
     
     override open func sectionIndexTitles(for tableView: UITableView) -> [String]? {
@@ -430,6 +560,19 @@ extension EXACountryPicker {
         } else {
             country = sections[(indexPath as NSIndexPath).section].countries[(indexPath as NSIndexPath).row]
         }
+
+        // Persist to recents
+        if configuration.showsRecentCountries {
+            var recents = recentCountryCodes
+                .filter { $0.caseInsensitiveCompare(country.code) != .orderedSame }
+            recents.insert(country.code.uppercased(), at: 0)
+            if recents.count > configuration.recentCountriesLimit {
+                recents = Array(recents.prefix(configuration.recentCountriesLimit))
+            }
+            recentCountryCodes = recents
+            _sections = nil
+        }
+
         delegate?.countryPicker?(self, didSelectCountryWithName: country.name, code: country.code)
         delegate?.countryPicker(self, didSelectCountryWithName: country.name, code: country.code, dialCode: country.dialCode)
         didSelectCountryClosure?(country.name, country.code)
@@ -437,48 +580,12 @@ extension EXACountryPicker {
     }
 }
 
-// MARK: - UISearchDisplayDelegate
-
 extension EXACountryPicker: UISearchResultsUpdating {
-    
     public func updateSearchResults(for searchController: UISearchController) {
-        _ = filter(searchController.searchBar.text!)
-        
-        if self.hidesNavigationBarWhenPresentingSearch == false {
-            searchController.searchBar.showsCancelButton = false
+        if let searchText = searchController.searchBar.text {
+            _ = filter(searchText)
         }
+
         tableView.reloadData()
-    }
-}
-
-// MARK: - UIImage extensions
-
-extension UIImage {
-    func fitImage(size: CGSize) -> UIImage? {
-        let widthRatio = size.width / self.size.width
-        let heightRatio = size.height / self.size.height
-        let ratio = min(widthRatio, heightRatio)
-        
-        let imageWidth = self.size.width * ratio
-        let imageHeight = self.size.height * ratio
-        
-        UIGraphicsBeginImageContextWithOptions(CGSize(width:imageWidth, height:imageHeight), false, 0.0)
-        self.draw(in: CGRect(x: 0, y: 0, width: imageWidth, height: imageHeight))
-        let resizedImage = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        
-        return resizedImage
-    }
-    
-    public convenience init?(color: UIColor, size: CGSize = CGSize(width: 1, height: 1)) {
-        let rect = CGRect(origin: .zero, size: size)
-        UIGraphicsBeginImageContextWithOptions(rect.size, false, 0.0)
-        color.setFill()
-        UIRectFill(rect)
-        let image = UIGraphicsGetImageFromCurrentImageContext()
-        UIGraphicsEndImageContext()
-        
-        guard let cgImage = image?.cgImage else { return nil }
-        self.init(cgImage: cgImage)
     }
 }
