@@ -257,3 +257,34 @@ Designed for iOS 13+
 ## License
 
 EXACountryPicker is available under the MIT license. See the LICENSE file for more info.
+
+## Troubleshooting (Flags not showing)
+
+If you use **Swift Package Manager** and the country flags don’t show up, it’s almost always a **resources/bundle** issue.
+
+This library ships the images inside `Sources/EXACountryPicker/assets.bundle/` and loads them from the package resources bundle:
+- SwiftPM: `Bundle.module`
+- CocoaPods: `Bundle(for: EXACountryPicker.self)`
+
+Make sure you’re using a version that declares the resources in `Package.swift` (SwiftPM):
+- `assets.bundle/`
+- `CallingCodes.plist`
+
+If you’re integrating from source, verify `Package.swift` contains something like:
+
+```swift
+.target(
+  name: "EXACountryPicker",
+  path: "Sources/EXACountryPicker",
+  resources: [
+    .process("assets.bundle"),
+    .process("CallingCodes.plist")
+  ]
+)
+```
+
+Also ensure you didn’t disable flags:
+
+```swift
+picker.showFlags = true
+```

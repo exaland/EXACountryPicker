@@ -7,6 +7,7 @@
 
 
 
+#if canImport(UIKit)
 import UIKit
 
 public final class EXCountry: NSObject {
@@ -21,3 +22,4 @@ public final class EXCountry: NSObject {
         self.dialCode = dialCode
     }
 }
+#endif

@@ -1,5 +1,7 @@
 import Testing
 import Foundation
+
+#if canImport(UIKit)
 @testable import EXACountryPicker
 
 @Test func configurationDefaults() async throws {
@@ -27,9 +29,8 @@ import Foundation
     configuration.recentCountriesUserDefaultsKey = key
     configuration.recentCountriesLimit = 3
 
-    let picker = await EXACountryPicker(style: .grouped)
-  //  picker.configuration = configuration
-    
+    // Note: no need to instantiate `EXACountryPicker` here; we only test the persistence logic.
+
     // Simulate selections by writing to defaults like production code does.
     func pushRecent(_ code: String) {
         var recents = (UserDefaults.standard.array(forKey: key) as? [String]) ?? []
@@ -49,3 +50,5 @@ import Foundation
     let stored = (UserDefaults.standard.array(forKey: key) as? [String]) ?? []
     #expect(stored == ["DE", "FR", "US"]) // limit=3, most recent first
 }
+
+#endif

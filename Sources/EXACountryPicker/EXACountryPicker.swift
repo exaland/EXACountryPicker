@@ -1,7 +1,19 @@
 // The Swift Programming Language
 // https://docs.swift.org/swift-book
 
+#if canImport(UIKit)
 import UIKit
+
+// SwiftPM resources live in `Bundle.module`. CocoaPods/Carthage typically use `Bundle(for:)`.
+private extension Bundle {
+    static var exaCountryPickerResources: Bundle {
+        #if SWIFT_PACKAGE
+        return .module
+        #else
+        return Bundle(for: EXACountryPicker.self)
+        #endif
+    }
+}
 
 struct Section {
     var countries: [EXCountry] = []
@@ -56,7 +68,7 @@ open class EXACountryPicker: UITableViewController {
     }
 
     fileprivate lazy var CallingCodes = { () -> [[String: String]] in
-        let resourceBundle = Bundle(for: EXACountryPicker.classForCoder())
+        let resourceBundle = Bundle.exaCountryPickerResources
         guard let path = resourceBundle.path(forResource: "CallingCodes", ofType: "plist") else { return [] }
         return NSArray(contentsOfFile: path) as! [[String: String]]
     }()
@@ -228,9 +240,9 @@ open class EXACountryPicker: UITableViewController {
 
         if self.presentingViewController != nil {
 
-            let bundle = "assets.bundle/"
-            let closeButton = UIBarButtonItem(image: UIImage(named: bundle + "close_icon" + ".png",
-                                                             in: Bundle(for: EXACountryPicker.self),
+            let bundlePath = "assets.bundle/"
+            let closeButton = UIBarButtonItem(image: UIImage(named: bundlePath + "close_icon" + ".png",
+                                                             in: Bundle.exaCountryPickerResources,
                                                              compatibleWith: nil),
                                               style: .plain,
                                               target: self,
@@ -378,11 +390,12 @@ open class EXACountryPicker: UITableViewController {
     /// - Returns: the UIImage for given country code if it exists
     public func getFlag(countryCode: String) -> UIImage? {
         let countries = self.getCountry(countryCode)
-        
+
         if countries.count > 0 {
-            let bundle = "assets.bundle/"
-            return UIImage(named: bundle + countries.first!.code.uppercased() + ".png",
-                           in: Bundle(for: EXACountryPicker.self), compatibleWith: nil)
+            let bundlePath = "assets.bundle/"
+            return UIImage(named: bundlePath + countries.first!.code.uppercased() + ".png",
+                           in: Bundle.exaCountryPickerResources,
+                           compatibleWith: nil)
         }
         else {
             return nil
@@ -472,10 +485,12 @@ extension EXACountryPicker {
             cell.textLabel?.text = country.name
         }
         
-        let bundle = "assets.bundle/"
-        
+        let bundlePath = "assets.bundle/"
+
         if self.showFlags == true {
-            let image = UIImage(named: bundle + country.code.uppercased() + ".png", in: Bundle(for: EXACountryPicker.self), compatibleWith: nil)
+            let image = UIImage(named: bundlePath + country.code.uppercased() + ".png",
+                                in: Bundle.exaCountryPickerResources,
+                                compatibleWith: nil)
             if (image != nil) {
                 cell.imageView?.image = image?.fitImage(size: CGSize(width:self.flagHeight, height:flagHeight))
             }
@@ -589,3 +604,4 @@ extension EXACountryPicker: UISearchResultsUpdating {
         tableView.reloadData()
     }
 }
+#endif

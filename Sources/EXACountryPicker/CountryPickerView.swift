@@ -1,4 +1,6 @@
 import SwiftUI
+
+#if canImport(UIKit)
 import UIKit
 
 /// SwiftUI wrapper around `EXACountryPicker`.
@@ -79,3 +81,8 @@ public struct CountryPickerView: UIViewControllerRepresentable {
         }
     }
 }
+
+#else
+// This package is iOS-oriented (UIKit). We conditionally compile the SwiftUI wrapper
+// so `swift test` on macOS doesn't fail.
+#endif

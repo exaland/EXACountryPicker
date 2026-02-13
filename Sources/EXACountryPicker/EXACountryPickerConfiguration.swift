@@ -1,3 +1,4 @@
+#if canImport(UIKit)
 import UIKit
 
 /// Visual theme for `EXACountryPicker`.
@@ -113,3 +114,4 @@ public struct EXACountryPickerConfiguration: Sendable {
 
     public static var `default`: EXACountryPickerConfiguration { .init() }
 }
+#endif
